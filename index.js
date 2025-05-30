@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const upload = require('./config/imagesconfig');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const dotenv = require('dotenv').config();
 const app = express();
 
 app.use(express.json());
@@ -23,18 +24,19 @@ app.post("/singup", async function(req,res){
     let user = await usermodel.findOne({email});
     if(user) return res.status(500).send("user already create");
     
-    bcrypt.genSalt(10, (err, salt) => {
-        bcrypt.hash(password, salt, async (err, hash) => {
-            let user = await usermodel.create({
-                name,
-                email,
-                password : hash
-            });
-            let token = jwt.sign({email,id : user._id}, "shhhh");
-            res.cookie("token",token);
-            res.send("singup successfully");
-        }); 
-    });
+        bcrypt.genSalt(10, (err, salt) => {
+            bcrypt.hash(password, salt, async (err, hash) => {
+                let user = await usermodel.create({
+                    name,
+                    email,
+                    password : hash
+                });
+                // let token = jwt.sign({id : user._id}, "shhhh");
+                // console.log(token.id);
+                // res.cookie("token",token);
+                res.redirect("/login");
+            }); 
+        });
 });
 
 app.post("/singin", async function(req,res){
@@ -46,9 +48,9 @@ app.post("/singin", async function(req,res){
 
     bcrypt.compare(password, user.password, function(err, result){
         if(result){
-            let token = jwt.sign({email,id : user._id}, "shhhh");
+            let token = jwt.sign({id : user._id}, process.env.SECRET_KEY);
             res.cookie("token",token);
-            res.redirect("profile");
+            res.redirect("/profile");
         }
         else{
             res.send("somethin went wrong");
@@ -63,8 +65,8 @@ app.get("/profile",islogedin, async function(req,res){
     let user = await usermodel.findOne({email : req.user.email}).populate("posts");
 
 
-    // console.log(req.user);
-    res.render("profile",{user});
+    console.log(req.user.id);
+    // res.render("profile",{user});
 })
 app.post("/createpost",islogedin ,async function(req,res){
     let user = await usermodel.findOne({email : req.user.email});
@@ -121,10 +123,10 @@ function islogedin(req,res,next){
         res.redirect("/login");
     }
     else{
-        let data = jwt.verify(req.cookies.token,"shhhh");
+        let data = jwt.verify(req.cookies.token,process.env.SECRET_KEY);
         req.user = data;
         next();
     }
 }
 
-app.listen(3000);
+app.listen(process.env.PORT || 3000);
